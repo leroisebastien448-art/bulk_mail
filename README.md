@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Bulk Mailer</title>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,sans-serif;background:#f0f2f5;color:#1a1a1a;}
+.screen{display:none;}.screen.active{display:block;}
+.topbar{background:#1a1a2e;padding:0 1.5rem;display:flex;align-items:center;height:52px;}
+.topbar-logo{color:white;font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px;flex:1;}
+.topbar-logo svg{width:20px;height:20px;fill:white;}
+.nav-btn{padding:6px 14px;border-radius:6px;font-size:13px;color:rgba(255,255,255,0.7);cursor:pointer;border:none;background:transparent;}
+.nav-btn:hover{background:rgba(255,255,255,0.1);color:white;}
+.nav-btn.active{background:rgba(255,255,255,0.18);color:white;}
+.content{padding:1.5rem;max-width:1000px;margin:0 auto;}
+.page{display:none;}.page.active{display:block;}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1.5rem;}
+.stat-card{background:white;border-radius:10px;padding:1rem 1.25rem;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+.stat-label{font-size:12px;color:#888;margin-bottom:6px;}
+.stat-val{font-size:28px;font-weight:700;}
+.stat-sub{font-size:12px;color:#aaa;margin-top:4px;}
+.card{background:white;border-radius:10px;padding:1.25rem;margin-bottom:1rem;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;}
+.card-title{font-size:15px;font-weight:600;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;padding:8px 12px;color:#888;font-weight:500;border-bottom:1px solid #f0f0f0;}
+td{padding:10px 12px;border-bottom:1px solid #f5f5f5;color:#333;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#fafafa;}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-green{background:#eaf3de;color:#3b6d11;}
+.badge-red{background:#fcebeb;color:#a32d2d;}
+.btn-sm{padding:6px 14px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:white;color:#333;cursor:pointer;}
+.btn-sm:hover{background:#f5f5f5;}
+.btn-blue{background:#1a1a2e;color:white;border:none;}
+.btn-blue:hover{background:#2d2d4e;}
+.compose-grid{display:grid;grid-template-columns:1fr 280px;gap:1rem;}
+.ff{margin-bottom:1rem;}
+.ff label{display:block;font-size:13px;color:#555;margin-bottom:5px;font-weight:500;}
+.ff input,.ff select,.ff textarea{width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;outline:none;font-family:Arial,sans-serif;color:#1a1a1a;}
+.ff textarea{resize:vertical;min-height:160px;}
+.ff input:focus,.ff select:focus,.ff textarea:focus{border-color:#3366cc;}
+.tags-box{border:1px solid #ddd;border-radius:8px;padding:8px;min-height:72px;background:white;cursor:text;}
+.tag{display:inline-flex;align-items:center;gap:5px;background:#f0f2f5;border:1px solid #ddd;border-radius:20px;padding:4px 12px;font-size:13px;color:#333;margin:3px;}
+.tag button{background:none;border:none;cursor:pointer;color:#aaa;font-size:16px;padding:0;line-height:1;}
+.tag button:hover{color:#e24b4a;}
+.add-row{display:flex;gap:8px;margin-top:8px;}
+.add-row input{flex:1;padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;outline:none;}
+.add-row input:focus{border-color:#3366cc;}
+.cnt{font-size:12px;color:#888;margin-top:6px;}
+.progress-bar{height:8px;background:#eee;border-radius:4px;overflow:hidden;margin-top:8px;}
+.progress-fill{height:100%;background:#1a1a2e;border-radius:4px;transition:width 0.3s;}
+.send-log{background:#f8f8f8;border-radius:8px;padding:10px;font-family:monospace;font-size:12px;color:#555;height:140px;overflow-y:auto;margin-top:10px;border:1px solid #eee;}
+.notif{position:fixed;top:18px;right:18px;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;display:none;box-shadow:0 4px 16px rgba(0,0,0,0.18);max-width:440px;line-height:1.5;}
+.notif.success{background:#1a1a2e;color:white;}
+.notif.error{background:#a32d2d;color:white;}
+.send-big-btn{width:100%;padding:13px;background:#1a1a2e;color:white;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:6px;}
+.send-big-btn:hover{background:#2d2d4e;}
+.send-big-btn:disabled{background:#999;cursor:not-allowed;}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.4);border-top-color:white;border-radius:50%;animation:spin 0.7s linear infinite;margin-right:8px;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.info-box{background:#e6f1fb;border:1px solid #b5d4f4;border-radius:8px;padding:12px 14px;font-size:13px;color:#185fa5;margin-bottom:1rem;line-height:1.8;}
+.ok-box{background:#eaf3de;border:1px solid #c0dd97;border-radius:8px;padding:12px;font-size:13px;color:#27500a;margin-top:8px;}
+.err-box{background:#fcebeb;border:1px solid #f09595;border-radius:8px;padding:12px;font-size:13px;color:#791f1f;margin-top:8px;line-height:1.6;word-break:break-word;}
+.step{background:#f8f9fa;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:8px;border-left:3px solid #1a1a2e;line-height:1.7;}
+.config-ready{background:#eaf3de;border:1px solid #c0dd97;border-radius:8px;padding:10px 14px;font-size:13px;color:#27500a;margin-top:8px;display:none;}
+.warn-box{background:#fff8e6;border:1px solid #fac775;border-radius:8px;padding:12px 14px;font-size:13px;color:#633806;margin-bottom:1rem;line-height:1.8;}
+</style>
+</head>
+<body>
+
+<div class="notif" id="notif"></div>
+
+<div class="screen active" id="s-app">
+  <div class="topbar">
+    <div class="topbar-logo">
+      <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+      Bulk Mailer
+    </div>
+    <div style="display:flex;gap:4px;">
+      <button class="nav-btn active" onclick="gp('dashboard',this)">Dashboard</button>
+      <button class="nav-btn" onclick="gp('compose',this)">Composer</button>
+      <button class="nav-btn" onclick="gp('config',this)">Configuration</button>
+      <button class="nav-btn" onclick="gp('history',this)">Historique</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="p-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Emails envoyés</div><div class="stat-val" id="st-sent">0</div><div class="stat-sub">Cette session</div></div>
+        <div class="stat-card"><div class="stat-label">Réussis</div><div class="stat-val" id="st-ok" style="color:#3b6d11;">0</div><div class="stat-sub">Envois OK</div></div>
+        <div class="stat-card"><div class="stat-label">Erreurs</div><div class="stat-val" id="st-err" style="color:#a32d2d;">0</div><div class="stat-sub">Échecs</div></div>
+      </div>
+      <div class="card" id="config-warning">
+        <div style="font-size:14px;font-weight:600;color:#633806;margin-bottom:6px;">⚠ Configuration requise</div>
+        <div style="font-size:13px;color:#854f0b;line-height:1.7;">
+          Pour envoyer de vrais emails, va dans <b>Configuration</b> et entre tes clés EmailJS.<br>
+          EmailJS est gratuit — 200 emails/mois sans serveur.
+        </div>
+        <button class="btn-sm btn-blue" style="margin-top:10px;" onclick="gp('config',document.querySelectorAll('.nav-btn')[2])">Configurer maintenant</button>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Derniers envois</div>
+          <button class="btn-sm btn-blue" onclick="gp('compose',document.querySelectorAll('.nav-btn')[1])">+ Nouvel envoi</button>
+        </div>
+        <table>
+          <thead><tr><th>Destinataire</th><th>Objet</th><th>Expéditeur</th><th>Date</th><th>Statut</th></tr></thead>
+          <tbody id="hist-body"><tr><td colspan="5" style="text-align:center;color:#bbb;padding:2rem 0;">Aucun envoi pour le moment</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- COMPOSER -->
+    <div class="page" id="p-compose">
+      <div class="compose-grid">
+        <div>
+          <div class="card">
+            <div class="card-title" style="margin-bottom:1.2rem;">Composer un email</div>
+            <div class="ff"><label>Nom expéditeur</label><input type="text" id="fromName" placeholder="Mon Entreprise"/></div>
+            <div class="ff"><label>Email expéditeur</label><input type="email" id="fromEmail" placeholder="mail@cyberverifs.com"/></div>
+            <div class="ff">
+              <label>Destinataires</label>
+              <div class="tags-box" id="tags-box" onclick="document.getElementById('ei').focus()"></div>
+              <div class="add-row">
+                <input type="email" id="ei" placeholder="client@exemple.com — Entrée pour ajouter"/>
+                <button class="btn-sm btn-blue" onclick="addTag()">Ajouter</button>
+              </div>
+              <div class="cnt" id="cnt">0 destinataire(s)</div>
+            </div>
+            <div class="ff"><label>Objet</label><input type="text" id="subject" placeholder="Objet de votre email..."/></div>
+            <div class="ff"><label>Corps du message</label><textarea id="body" placeholder="Bonjour,&#10;&#10;Votre message ici...&#10;&#10;Cordialement"></textarea></div>
+            <div style="display:flex;gap:8px;margin-bottom:6px;">
+              <button class="btn-sm" onclick="clearForm()">Réinitialiser</button>
+            </div>
+            <button class="send-big-btn" id="sendBtn" onclick="startSend()">&#9993; Envoyer les emails maintenant</button>
+          </div>
+          <div class="card" id="prog-card" style="display:none;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <div class="card-title" id="prog-title">Envoi en cours...</div>
+              <span id="prog-pct" style="font-size:13px;color:#888;font-weight:600;">0%</span>
+            </div>
+            <div style="font-size:13px;color:#888;" id="prog-txt">Préparation...</div>
+            <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+            <div class="send-log" id="send-log"></div>
+          </div>
+        </div>
+
+        <!-- Colonne droite -->
+        <div>
+          <div class="card">
+            <div class="card-title" style="margin-bottom:10px;">Statut EmailJS</div>
+            <div id="ejs-status" style="background:#fcebeb;border:1px solid #f09595;border-radius:8px;padding:10px 14px;font-size:13px;color:#791f1f;">
+              &#10007; Non configuré — allez dans Configuration
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="margin-bottom:10px;">Informations</div>
+            <div style="font-size:13px;color:#555;line-height:2.2;">
+              <div>&#9679; Emails envoyés via <b>EmailJS</b></div>
+              <div>&#9679; Aucun serveur requis</div>
+              <div>&#9679; 200 emails/mois gratuits</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFIGURATION -->
+    <div class="page" id="p-config">
+      <div class="card" style="max-width:620px;">
+        <div class="card-title" style="margin-bottom:1rem;">Configuration EmailJS</div>
+        <div class="info-box">
+          <b>EmailJS</b> permet d'envoyer des emails directement depuis ce fichier HTML, sans serveur.<br>
+          Gratuit jusqu'à <b>200 emails/mois</b>. Inscription sur <b>emailjs.com</b>
+        </div>
+        <div class="step"><b>Étape 1</b> — Va sur <a href="https://www.emailjs.com" target="_blank" style="color:#3366cc;">emailjs.com</a> → Sign Up (gratuit)</div>
+        <div class="step"><b>Étape 2</b> — Dashboard → <b>Email Services</b> → Add New Service → connecte Gmail → copie le <b>Service ID</b></div>
+        <div class="step"><b>Étape 3</b> — Dashboard → <b>Email Templates</b> → Create New Template<br>
+          Champs obligatoires : <code style="background:#eee;padding:2px 6px;border-radius:4px;">To: {{to_email}} | Subject: {{subject}} | Body: {{message}} | Reply To: {{reply_to}}</code>
+        </div>
+        <div class="step"><b>Étape 4</b> — Dashboard → <b>Account</b> → API Keys → copie la <b>Public Key</b></div>
+        <hr style="border:none;border-top:1px solid #eee;margin:1.2rem 0;"/>
+        <div class="ff"><label>Public Key</label><input type="text" id="ejsPublicKey" placeholder="xxxxxxxxxxxxxxxxxxxx"/></div>
+        <div class="ff"><label>Service ID</label><input type="text" id="ejsServiceId" placeholder="service_xxxxxxx"/></div>
+        <div class="ff" style="margin-bottom:1.2rem;"><label>Template ID</label><input type="text" id="ejsTemplateId" placeholder="template_xxxxxxx"/></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-sm btn-blue" style="flex:1;padding:10px;" onclick="saveConfig()">Enregistrer</button>
+          <button class="btn-sm" onclick="testConfig()">Tester</button>
+        </div>
+        <div id="config-res" style="display:none;"></div>
+        <div class="config-ready" id="config-ok">&#10003; Configuration sauvegardée ! Tu peux maintenant envoyer de vrais emails.</div>
+      </div>
+    </div>
+
+    <!-- HISTORIQUE -->
+    <div class="page" id="p-history">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Historique complet</div>
+          <button class="btn-sm" onclick="exportCSV()">Exporter CSV</button>
+        </div>
+        <table>
+          <thead><tr><th>Destinataire</th><th>Objet</th><th>Expéditeur</th><th>Date</th><th>Statut</th></tr></thead>
+          <tbody id="hist-body2"><tr><td colspan="5" style="text-align:center;color:#bbb;padding:2rem 0;">Aucun envoi pour le moment</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  CLÉS EMAILJS — déjà configurées
+// ============================================================
+let ejsConfig = {
+  publicKey:  'MsUcHaS9BFeOJzjjX',
+  serviceId:  'service_h0h9sst',
+  templateId: 'template_q7gzp3r'
+};
+let ejsReady = false;
+
+// Init automatique au chargement
+initEJS();
+
+function initEJS(){
+  if(!ejsConfig.publicKey || !ejsConfig.serviceId || !ejsConfig.templateId) return;
+  try {
+    emailjs.init({ publicKey: ejsConfig.publicKey });
+    ejsReady = true;
+    updateEJSStatus(true);
+    document.getElementById('config-warning').style.display = 'none';
+  } catch(e){ ejsReady = false; }
+}
+
+function updateEJSStatus(ok){
+  const el = document.getElementById('ejs-status');
+  if(!el) return;
+  if(ok){
+    el.style.background='#eaf3de'; el.style.color='#27500a'; el.style.border='1px solid #c0dd97';
+    el.innerHTML='&#10003; EmailJS configuré et prêt — emails réels activés';
+  } else {
+    el.style.background='#fcebeb'; el.style.color='#791f1f'; el.style.border='1px solid #f09595';
+    el.innerHTML='&#10007; Non configuré — allez dans Configuration';
+  }
+}
+
+// ============================================================
+//  NAVIGATION
+// ============================================================
+function gp(name, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('p-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(name==='config'){
+    document.getElementById('ejsPublicKey').value = ejsConfig.publicKey || '';
+    document.getElementById('ejsServiceId').value = ejsConfig.serviceId || '';
+    document.getElementById('ejsTemplateId').value = ejsConfig.templateId || '';
+    if(ejsReady) document.getElementById('config-ok').style.display='block';
+  }
+}
+
+// ============================================================
+//  TAGS DESTINATAIRES
+// ============================================================
+const emails = [];
+function valid(e){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+function renderTags(){
+  const box = document.getElementById('tags-box'); box.innerHTML='';
+  emails.forEach((em,i)=>{
+    const t = document.createElement('span'); t.className='tag';
+    t.innerHTML = em+'<button onclick="removeTag('+i+')">&times;</button>';
+    box.appendChild(t);
+  });
+  document.getElementById('cnt').textContent = emails.length+' destinataire(s)';
+}
+function removeTag(i){ emails.splice(i,1); renderTags(); }
+function addTag(){
+  const inp = document.getElementById('ei');
+  let added = 0;
+  inp.value.trim().split(/[,;\s]+/).filter(Boolean).forEach(v=>{
+    v = v.toLowerCase();
+    if(valid(v) && !emails.includes(v)){ emails.push(v); added++; }
+  });
+  if(!added && inp.value.trim()){
+    inp.style.borderColor='#e24b4a';
+    setTimeout(()=>inp.style.borderColor='#ddd',1200);
+  }
+  renderTags(); inp.value=''; inp.focus();
+}
+function clearForm(){
+  emails.length=0; renderTags();
+  ['fromName','fromEmail','subject','body'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('prog-card').style.display='none';
+}
+
+// ============================================================
+//  ENVOI RÉEL VIA EMAILJS
+// ============================================================
+let histLog=[], totalSent=0, totalOk=0, totalErr=0;
+
+async function startSend(){
+  const fromName  = document.getElementById('fromName').value.trim();
+  const fromEmail = document.getElementById('fromEmail').value.trim() || 'mail@cyberverifs.com';
+  const subject   = document.getElementById('subject').value.trim();
+  const body      = document.getElementById('body').value.trim();
+
+  if(!subject){ showNotif('Veuillez saisir un objet','error'); return; }
+  if(!body){ showNotif('Veuillez saisir un message','error'); return; }
+  if(!emails.length){ showNotif('Ajoutez au moins un destinataire','error'); return; }
+  if(!ejsReady){ showNotif('Configurez EmailJS d\'abord (onglet Configuration)','error'); return; }
+
+  const btn = document.getElementById('sendBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Envoi en cours...';
+  const pc    = document.getElementById('prog-card');
+  const log   = document.getElementById('send-log');
+  const fill  = document.getElementById('prog-fill');
+  const txt   = document.getElementById('prog-txt');
+  const pct   = document.getElementById('prog-pct');
+  const ptitle= document.getElementById('prog-title');
+  pc.style.display='block'; log.innerHTML=''; fill.style.width='0%';
+  ptitle.textContent='Envoi en cours...'; txt.textContent='Connexion EmailJS...';
+
+  const list  = [...emails];
+  const total = list.length;
+
+  for(let i=0; i<total; i++){
+    const to = list[i];
+    txt.textContent = (i+1)+' / '+total+' — envoi à '+to+'...';
+    try {
+      await emailjs.send(ejsConfig.serviceId, ejsConfig.templateId, {
+        to_email:  to,
+        from_name: fromName || 'CyberVerifs',
+        reply_to:  fromEmail,
+        subject:   subject,
+        message:   body
+      });
+      const p = Math.round((i+1)/total*100);
+      fill.style.width=p+'%'; pct.textContent=p+'%';
+      log.innerHTML += '<div style="color:#3b6d11">[OK] '+to+'</div>';
+      histLog.push({to, subject, from:fromEmail, date:new Date().toLocaleString('fr-FR'), ok:true});
+      totalSent++; totalOk++;
+    } catch(err){
+      const p = Math.round((i+1)/total*100);
+      fill.style.width=p+'%'; pct.textContent=p+'%';
+      const msg = err.text || err.message || JSON.stringify(err);
+      log.innerHTML += '<div style="color:#a32d2d">[ERREUR] '+to+' — '+msg+'</div>';
+      histLog.push({to, subject, from:fromEmail, date:new Date().toLocaleString('fr-FR'), ok:false});
+      totalSent++; totalErr++;
+    }
+    log.scrollTop = log.scrollHeight;
+    updateStats(); renderHist();
+    if(i < total-1) await sleep(500);
+  }
+
+  ptitle.textContent = 'Envoi terminé !';
+  txt.textContent = totalOk+' OK / '+totalErr+' erreur(s)';
+  log.innerHTML += '<div style="color:#888;margin-top:6px;">— Terminé —</div>';
+  showNotif('Terminé — '+totalOk+'/'+total+' emails envoyés');
+  btn.disabled=false; btn.innerHTML='&#9993; Envoyer les emails maintenant';
+}
+
+// ============================================================
+//  CONFIGURATION EMAILJS
+// ============================================================
+function saveConfig(){
+  const pk = document.getElementById('ejsPublicKey').value.trim();
+  const si = document.getElementById('ejsServiceId').value.trim();
+  const ti = document.getElementById('ejsTemplateId').value.trim();
+  const div = document.getElementById('config-res');
+  if(!pk||!si||!ti){ div.style.display='block'; div.innerHTML='<div class="err-box">Remplissez tous les champs</div>'; return; }
+  ejsConfig = {publicKey:pk, serviceId:si, templateId:ti};
+  try { localStorage.setItem('ejs_config', JSON.stringify(ejsConfig)); } catch(e){}
+  try {
+    emailjs.init({ publicKey: pk });
+    ejsReady = true;
+    updateEJSStatus(true);
+    document.getElementById('config-warning').style.display='none';
+    document.getElementById('config-ok').style.display='block';
+    div.style.display='block';
+    div.innerHTML='<div class="ok-box">&#10003; Configuration enregistrée !</div>';
+  } catch(e){
+    ejsReady=false;
+    div.style.display='block';
+    div.innerHTML='<div class="err-box">Erreur : '+e.message+'</div>';
+  }
+}
+
+async function testConfig(){
+  const pk = document.getElementById('ejsPublicKey').value.trim();
+  const si = document.getElementById('ejsServiceId').value.trim();
+  const ti = document.getElementById('ejsTemplateId').value.trim();
+  const div = document.getElementById('config-res');
+  if(!pk||!si||!ti){ div.style.display='block'; div.innerHTML='<div class="err-box">Remplissez tous les champs</div>'; return; }
+  div.style.display='block'; div.innerHTML='<div style="color:#888;font-size:13px;margin-top:8px;">Test en cours...</div>';
+  try {
+    emailjs.init({ publicKey: pk });
+    await emailjs.send(si, ti, {
+      to_email:  'test@test.com',
+      from_name: 'Bulk Mailer Test',
+      reply_to:  'mail@cyberverifs.com',
+      subject:   'Test EmailJS',
+      message:   'Test de configuration réussi !'
+    });
+    div.innerHTML='<div class="ok-box">&#10003; Connexion réussie !</div>';
+    ejsReady=true; updateEJSStatus(true);
+  } catch(e){
+    const msg = e.text || e.message || JSON.stringify(e);
+    div.innerHTML='<div class="err-box">&#10007; '+msg+'</div>';
+  }
+}
+
+// ============================================================
+//  HELPERS
+// ============================================================
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function showNotif(msg, type='success'){
+  const n = document.getElementById('notif');
+  n.textContent=msg; n.className='notif '+type; n.style.display='block';
+  setTimeout(()=>n.style.display='none', 5000);
+}
+function updateStats(){
+  document.getElementById('st-sent').textContent = totalSent;
+  document.getElementById('st-ok').textContent   = totalOk;
+  document.getElementById('st-err').textContent  = totalErr;
+}
+function renderHist(){
+  const rows = histLog.slice().reverse().map(e=>
+    '<tr><td>'+e.to+'</td><td>'+e.subject+'</td><td>'+e.from+'</td><td>'+e.date+'</td><td><span class="badge '+(e.ok?'badge-green':'badge-red')+'">'+(e.ok?'Envoyé':'Erreur')+'</span></td></tr>'
+  ).join('');
+  const empty = '<tr><td colspan="5" style="text-align:center;color:#bbb;padding:2rem 0;">Aucun envoi pour le moment</td></tr>';
+  document.getElementById('hist-body').innerHTML  = rows||empty;
+  document.getElementById('hist-body2').innerHTML = rows||empty;
+}
+function exportCSV(){
+  if(!histLog.length){ showNotif('Aucun envoi à exporter','error'); return; }
+  const rows=[['Destinataire','Objet','Expéditeur','Date','Statut'],...histLog.map(e=>[e.to,e.subject,e.from,e.date,e.ok?'Envoyé':'Erreur'])];
+  const csv=rows.map(r=>r.map(v=>'"'+v+'"').join(',')).join('\n');
+  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='historique_envois.csv'; a.click();
+}
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && document.activeElement===document.getElementById('ei')){ e.preventDefault(); addTag(); }
+  if(e.key===',' && document.activeElement===document.getElementById('ei')){ e.preventDefault(); addTag(); }
+});
+</script>
+</body>
+</html>
